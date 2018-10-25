@@ -1,11 +1,32 @@
 Package: iuiuML
 Type: Package
-Title: What the Package Does (Title Case)
+Title: ML for iuiu fans
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+Author: Iuiu Moflets
+Maintainer:  <yuyucalella@gmail.com>
+Description: Don't pretend you don't know what it does bitch
+License: Iuiu films
 Encoding: UTF-8
 LazyData: true
+Comments: picante amigo
+Depends: 
+      Metrics,
+      caret,
+      data.table, 
+      reshape2, 
+      lubridate, 
+      dummies, 
+      doParallel,
+      AUC, 
+      ggplot2, 
+      plotly, 
+      GGally, 
+      caret, 
+      xgboost, 
+      tensorflow, 
+      e1071, 
+      FNN, 
+      measurements,
+      ggExtra,
+      DataExplorer
+

@@ -11,9 +11,11 @@ library(ggplot2) # visualisation
 library(ggpubr) # visualisation
 library(plotly) # visualisation
 library(GGally) # visualisation
-library(caret) # modelling 
+library(caret) # modelling
 library(xgboost) # modelling
 library(tensorflow) # modelling
+library(e1071) # modelling
+
 # library(kknn) # modelling
 library(FNN) # modelling
 library(measurements)
@@ -58,7 +60,7 @@ ggroc <- function(...,OnlyAUC = F,OnlyPr = F){
   if(!thereis.group) A$group <- 'a'
   stopifnot(c('pred','y') %in% names(A))
   stopifnot(A$y %in% c('X0','X1'))
-  
+
   A <- A[order(pred,decreasing = T)]
   A <-   A[,
   .(pred,y,
@@ -69,16 +71,16 @@ ggroc <- function(...,OnlyAUC = F,OnlyPr = F){
     T = sum(y == 'X1'),
     F = sum(y == 'X0')),
     group]
-  
+
   A$TPR <- A$TP/A$T
   A$FPR <- A$FP/A$F
   A$PPV <- A$TP/A$P
   A <- A[,.SD[sample(.N,min(.N,10^4))],group] # We don't need all the rows for the plot (time consuming)
-  
-  g1 <- ggplot(A,aes(FPR,TPR,col = group)) + geom_line() + geom_abline(slope=1) + 
+
+  g1 <- ggplot(A,aes(FPR,TPR,col = group)) + geom_line() + geom_abline(slope=1) +
     xlab('1 - Specificity') + ylab('Sensitivity') + theme(legend.title = element_blank())
-  g2 <- ggplot(A,aes(PPV,TPR,col = group)) + geom_line() + 
-    xlab('Precision') + ylab('Sensitivity') 
+  g2 <- ggplot(A,aes(PPV,TPR,col = group)) + geom_line() +
+    xlab('Precision') + ylab('Sensitivity')
   if(thereis.group) {
   g3 <- ggarrange(g1,g2,align='v',legend='right',common.legend = T)
   } else {
@@ -99,7 +101,7 @@ confusionMatrix2 <- function(pred,data,positive = 'X1', print = T) {
 }
 
 # Wrapper function of caret::confusionMatrix with AUC
-confusionMatrix3 = function(pred,data, group = NULL,sinkfilename = NULL){
+confusionMatrix3 = function(pred,data, group = NULL,sinkfilename = NULL, show.best.roc = T){
   if(!is.null(group)) {
     if(is.null(sinkfilename))
       sinkfilename = paste0('./output/', filenameout, 'confusionmatrix_',group,'.txt')
@@ -111,10 +113,11 @@ confusionMatrix3 = function(pred,data, group = NULL,sinkfilename = NULL){
   rocRR <- AUC::roc(pred,data)
   cat('auc = ',AUC::auc(rocRR))
   bestroc <- best.auc(rocRR)
-  
+  if(show.best.roc) {
   cat('\n')
   cat('Prob = ',bestroc[1], '(Best ROC)\n')
   confusionMatrix2(pred > bestroc, data)
+  }
   cat('\n')
   cat('Prob = 0.5\n')
   confusionMatrix2(pred > 0.5, data)
@@ -224,7 +227,7 @@ cartesian = function(lat,lon) {
   lon = conv_unit(lon,'degree','radian')
 x = cos(lat) * cos(lon)
 y = cos(lat) * sin(lon)
-z = sin(lat) 
+z = sin(lat)
 return(list(x = x, y = y, z = z))
 }
 
@@ -253,7 +256,7 @@ xgb.save2 = function(model,fname) {
   fname.tmp = gsub(suffix,suffix.tmp,fname,fixed=T)
   xgb.save(model, fname.tmp)
   file.copy(fname.tmp,fname,T)
- 
+
 }
 
 saveRDS2 = function(object, file,... ){
@@ -279,18 +282,19 @@ ggsave2 = function(plot,filename,...) {
   filename.tmp = gsub(suffix,suffix.tmp,filename,fixed=T)
   ggsave(filename.tmp, plot, ...)
   file.copy(filename.tmp,filename,T)
+  browseURL(filename)
  }
 
 # wrapper for xgb.plot.importance
 xgb.importance.plot = function(feature_names = names_xgb, model = model_xgb,
   nn_col = Inf, filename.plot = './output/xgb_importance_plot.png' ,show.plot = T, save.matrix = T,
-  filename.matrix ) {
+  filename.matrix, width = 6, height = 5 ) {
   imp_matrix = xgb.importance(feature_names = feature_names, model = model)[order(Gain,decreasing = T)]
   g1 = ggplot(imp_matrix[1:min(.N,nn_col)],aes(reorder(Feature, Gain, FUN = max), Gain, fill = Feature)) +
   geom_col() + coord_flip() +
   theme(legend.position = "none",text = element_text(size=25)) + labs(x = "Features", y = "Importance")
-  ggsave(filename.plot,g1)
-  if(show.plot) browseURL(filename.plot)
+  ggsave2(g1,filename.plot, width = width, height = height)
+  #if(show.plot) browseURL(filename.plot)
   if(save.matrix) {
     if(missing(filename.matrix)) {
       filename.matrix = gsub(get.fileextension(filename.plot),
@@ -299,3 +303,19 @@ xgb.importance.plot = function(feature_names = names_xgb, model = model_xgb,
     fwrite(imp_matrix,filename.matrix)
   }
 }
+
+createDataPartition2 = function(x, k = 2, prob = 0.5, outnames) {
+  if(length(prob) == 1) prob = c(prob, 1- prob)
+  stopifnot(sum(prob) == 1)
+  table_x = table(x)
+  out = x
+  for(i in 1:length(table_x)) {
+    out[x == names(table_x)[i]] =
+      sample(k,table_x[i],replace = T, prob = prob)
+  }
+  if(missing(outnames))
+    out else
+      outnames[out]
+}
+
+
