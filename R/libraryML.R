@@ -318,4 +318,4 @@ createDataPartition2 = function(x, k = 2, prob = 0.5, outnames) {
       outnames[out]
 }
 
-
+#
