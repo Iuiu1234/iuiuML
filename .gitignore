@@ -1,4 +1,6 @@
+.httr-oauth
+.Rproj.user/*
+R/0privatecredentials.R
+R/1privatecredentials.R
 .Rproj.user
-.Rhistory
-.RData
-.Ruserdata
+.hg/

@@ -1,0 +1,13 @@
+syntax: glob
+*.Rhistory
+*/_old/
+*deleteme*
+*dltme*
+input/
+output/
+*.Rproj
+.Rproj.user/
+.httr-oauth
+.git
+R/1privatecredentials.R
+

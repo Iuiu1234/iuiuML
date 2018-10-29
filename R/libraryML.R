@@ -193,10 +193,12 @@ xgb.as.numeric = function(A, dictionary) {
 }
 
 xgb.char.nonames = function(A, nn = 300) {
-  ff = function(x) length(unique(x))
+  ff = function(x) length(unique(na.omit(x)))
   out = sapply(A,ff)
-  names(out)[out > nn | out == 0]
+  names(out)[out > nn | out == 1]
 }
+
+xgb.num.nonames = function(A) xgb.char.nonames(A,Inf)
 
 xgb.as.character = function(A, dictionary) {
   nnames = names(A)
@@ -303,6 +305,56 @@ xgb.importance.plot = function(feature_names = names_xgb, model = model_xgb,
     fwrite(imp_matrix,filename.matrix)
   }
 }
+
+# xgb cv wfor random search
+xgb.cv.rs = function(train_xgb, params_xgb_ff, sign_error = -1, nn_iterations = 10,
+  best_error = -Inf, ...) {
+
+stopifnot(class(params_xgb_ff()) == 'list')
+  stopifnot(class(train_xgb) == "xgb.DMatrix")
+for( i in 1:nn_iterations){
+seed_number = sample.int(1000,1)[[1]]
+set.seed(seed_number)
+
+
+#watchlist <- list(train=dtest)
+params_xgb = params_xgb_ff()
+# cv
+cv_xgb = xgb.cv(params = params_xgb,
+                   data = train_xgb,
+                    ...)
+                   #watchlist = watchlist,
+
+
+  test_error_name = grep2(c('test','mean'),names(cv_xgb$evaluation_log))
+
+    # sign is used is here (so max_aux has already the correct sign)
+  max_error = max(sign_error*cv_xgb$evaluation_log[, test_error_name,with=F])
+  max_error_index = cv_xgb$best_iteration
+  test_error_name = gsub('mean','std',test_error_name)
+  max_error_std = max(cv_xgb$evaluation_log[max_error_index, test_error_name, with = F])
+
+  if (max_error > best_error){
+    best_error = max_error
+    best_error.index = max_error_index
+    best_error.std = max_error_std
+    best_seed = seed_number
+    best_params = params_xgb
+  }
+  cat(paste0('cv ' ,i,', best ',best_params$eval_metric,' ', best_error,
+    ' (', round(1.96*best_error.std,4), ') \n'))
+  print(cv_xgb$evaluation_log[max_error_index])
+}
+  list(best_error = best_error, best_error.index = best_error.index,
+    best_seed = best_seed, best_params = best_params, best_error.std = best_error.std)
+}
+# xgb.cv.rs(train_xgb,params_xgb,
+#                   nn_iterations = 2,
+#                   nrounds = 200,
+#                   nfold = 5,
+#                   early_stopping_rounds = 20,
+#                    print_every_n = 20,
+#                   verbose = F)
 
 createDataPartition2 = function(x, k = 2, prob = 0.5, outnames) {
   if(length(prob) == 1) prob = c(prob, 1- prob)
