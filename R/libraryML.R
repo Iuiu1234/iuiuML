@@ -1,26 +1,26 @@
-library(Metrics)
-library(caret)
-library(data.table) # data manipulation
-#library(dplyr) # data manipulation
-library(reshape2) # data manipulation
-library(lubridate) # dates manipulation
-library(dummies) # data manipulation
-library(doParallel) # parallelization
-library(AUC) # visualisation
-library(ggplot2) # visualisation
-library(ggpubr) # visualisation
-library(plotly) # visualisation
-library(GGally) # visualisation
-library(caret) # modelling
-library(xgboost) # modelling
-library(tensorflow) # modelling
-library(e1071) # modelling
-
-# library(kknn) # modelling
-library(FNN) # modelling
-library(measurements)
-library(ggExtra)
-library(DataExplorer)
+require(Metrics)
+require(caret)
+require(data.table) # data manipulation
+#require(dplyr) # data manipulation
+require(reshape2) # data manipulation
+require(lubridate) # dates manipulation
+require(dummies) # data manipulation
+require(doParallel) # parallelization
+require(AUC) # visualisation
+require(ggplot2) # visualisation
+require(ggpubr) # visualisation
+require(plotly) # visualisation
+require(GGally) # visualisation
+require(caret) # modelling
+require(xgboost) # modelling
+require(tensorflow) # modelling
+require(e1071) # modelling
+require(yaml)
+# require(kknn) # modelling
+require(FNN) # modelling
+require(measurements)
+require(ggExtra)
+require(DataExplorer)
 
 # Error metrics ---------------------------------------------------------------------------------
 # Wrapper function of caret::confusionMatrix -----------------------------------------------------
@@ -91,8 +91,11 @@ ggroc <- function(...,OnlyAUC = F,OnlyPr = F){
 
 confusionMatrix2 <- function(pred,data,positive = 'X1', print = T) {
   stopifnot(positive=='X1')
-  if(typeof(pred) == 'logical') pred <- ifelse(pred,'X1','X0')
-  A <- confusionMatrix(pred,data,positive)
+  if(typeof(pred) == 'logical') 
+    pred = ifelse(pred,'X1','X0')
+  
+  pred = factor(pred)
+  A <- caret::confusionMatrix(pred,data,positive)
   if(print){
   print(paste0('Positive = ',positive))
   print(A$table)
@@ -101,12 +104,7 @@ confusionMatrix2 <- function(pred,data,positive = 'X1', print = T) {
 }
 
 # Wrapper function of caret::confusionMatrix with AUC
-confusionMatrix3 = function(pred,data, group = NULL,sinkfilename = NULL, show.best.roc = T){
-  if(!is.null(group)) {
-    if(is.null(sinkfilename))
-      sinkfilename = paste0('./output/', filenameout, 'confusionmatrix_',group,'.txt')
-    sink(sinkfilename, split = T)
-    }
+confusionMatrix3 = function(pred,data, show.best.roc = T){
   if(class(data) %in% c('numeric','integer')) data = data >= 1
   if(class(data) == 'logical') data = make.names(as.numeric(data))
   data <- factor(data)
@@ -122,11 +120,7 @@ confusionMatrix3 = function(pred,data, group = NULL,sinkfilename = NULL, show.be
   cat('Prob = 0.5\n')
   confusionMatrix2(pred > 0.5, data)
   cat('\n')
-  if(!is.null(group)) {
-    sink()
-    file.copy.out = file.copy(sinkfilename,add.Sys.time2(sinkfilename))
-  }
-}
+ }
 
 confusionRegression = function(data,pred) {
   out = caret::postResample( data, pred)
@@ -137,6 +131,19 @@ confusionRegression = function(data,pred) {
   out = c(out, MAE = Metrics::mae( data, pred))
   #print(out)
   out
+}
+
+
+confusionTable = function(pred, data, type = 'Classification', ...) {
+  stopifnot(type %in% c('Classification', 'Regression'))
+  if(type == 'Classification') {
+    confusionMatrix3(pred,data,...)
+  } else if(type == 'Regression') {
+    confusionRegression(pred,data, ...)
+  } else {
+    stop ('type not found')
+  }
+  
 }
 
 # Wrapper of scale such that only scales certain selected features & returns output as data.table ---------
@@ -167,7 +174,8 @@ FNN.prob <- function(x) {
 # lapply2(A,as.numeric,names(A)[!names(A) %in% cclass])
 # A = xgb.as.numeric(A,dictionary)
 
-create.dictionary = function(A, nn = 300, sampling  =T) {
+create.dictionary = function(A, nn = 300, sampling  =T, set.seed_nn) {
+  if(!missing(set.seed_nn)) set.seed(set.seed_nn)
   ff = function(out) {
     out = unique(out)
     if(length(out) > nn ) out = NA
@@ -245,46 +253,52 @@ out
 save2 = function(...,file) {
   suffix = last(strsplit(file,'.',fixed=T)[[1]])
   suffix = paste0('.',suffix)
-  suffix.tmp = paste0(Sys.time2(),suffix)
+  suffix.tmp = paste0('_',Sys.time2(),'_tmp',suffix)
   file.tmp = gsub(suffix,suffix.tmp,file,fixed=T)
   save(...,file = file.tmp)
   file.copy(file.tmp,file,T)
+  invisible()
 }
 
 xgb.save2 = function(model,fname) {
   suffix = last(strsplit(fname,'.',fixed=T)[[1]])
   suffix = paste0('.',suffix)
-  suffix.tmp = paste0(Sys.time2(),suffix)
+  suffix.tmp = paste0('_',Sys.time2(),'_tmp',suffix)
   fname.tmp = gsub(suffix,suffix.tmp,fname,fixed=T)
   xgb.save(model, fname.tmp)
   file.copy(fname.tmp,fname,T)
+  invisible()
 
 }
 
 saveRDS2 = function(object, file,... ){
   suffix = last(strsplit(file,'.',fixed=T)[[1]])
   suffix = paste0('.',suffix)
-  suffix.tmp = paste0(Sys.time2(),suffix)
+  suffix.tmp = paste0('_',Sys.time2(),'_tmp',suffix)
   file.tmp = gsub(suffix,suffix.tmp,file,fixed=T)
   saveRDS(object,file = file.tmp,...)
   file.copy(file.tmp,file,T)
+  invisible()
 }
 
 fwrite2 = function(x,file,...) {
   suffix = get.fileextension(file)
-  suffix.tmp = paste0(Sys.time2(),suffix)
+  suffix.tmp = paste0('_',Sys.time2(),'_tmp',suffix)
   file.tmp = gsub(suffix,suffix.tmp,file,fixed=T)
   fwrite(x, file.tmp, ...)
   file.copy(file.tmp,file,T)
+  invisible()
 }
 
 ggsave2 = function(plot,filename,...) {
   suffix = get.fileextension(filename)
-  suffix.tmp = paste0(Sys.time2(),suffix)
+  suffix.tmp = paste0('_',Sys.time2(),'_tmp',suffix)
   filename.tmp = gsub(suffix,suffix.tmp,filename,fixed=T)
   ggsave(filename.tmp, plot, ...)
   file.copy(filename.tmp,filename,T)
-  browseURL(filename)
+  if(interactive()) browseURL(filename)
+  print(plot)
+  invisible()
  }
 
 # wrapper for xgb.plot.importance
@@ -296,7 +310,7 @@ xgb.importance.plot = function(feature_names = names_xgb, model = model_xgb,
   geom_col() + coord_flip() +
   theme(legend.position = "none",text = element_text(size=25)) + labs(x = "Features", y = "Importance")
   ggsave2(g1,filename.plot, width = width, height = height)
-  #if(show.plot) browseURL(filename.plot)
+  #if(show.plot) if(interactive()) browseURL(filename.plot)
   if(save.matrix) {
     if(missing(filename.matrix)) {
       filename.matrix = gsub(get.fileextension(filename.plot),
@@ -355,6 +369,61 @@ cv_xgb = xgb.cv(params = params_xgb,
 #                   early_stopping_rounds = 20,
 #                    print_every_n = 20,
 #                   verbose = F)
+
+xgb.cv.yml = function(data_xgb, args_cv_xgb,  ...) {
+  stopifnot(class(data_xgb) == "xgb.DMatrix")
+  stopifnot(class(args_cv_xgb) == "list")
+  data_xgb = list(data = data_xgb); gc_p = gc()
+  # args_cv_xgb = read_yaml(params_xgb_file)
+  params_xgb_ff = function(args) { 
+    out = lapply(args$expresions, function(x) eval(parse(text=x)))
+    out = c(out,args$constants)
+    out
+  }
+  params_xgb = params_xgb_ff(args_cv_xgb)
+  
+  nn_iterations = params_xgb$nn_iterations
+  best_error = -Inf
+  for( i in 1:nn_iterations){
+    seed_number = sample.int(1000,1)[[1]]
+    set.seed(seed_number)
+    
+    #watchlist <- list(train=dtest)
+    params_xgb = params_xgb_ff(args_cv_xgb)
+    args_xgb.cv = names(as.list(args(xgb.cv)))
+    args_xgb.cv2 = c( list(params = params_xgb), 
+                     params_xgb[names(params_xgb) %in% args_xgb.cv], ...)
+    data_xgb = c(data_xgb,args_xgb.cv2); gc_p = gc()
+    cv_xgb = do.call(xgb.cv, data_xgb)
+    data_xgb = data_xgb[1]; gc_p = gc()
+    
+    
+    test_error_name = grep2(c('test','mean'),names(cv_xgb$evaluation_log))
+    
+    # sign is used is here (so max_aux has already the correct sign)
+    max_error = max(params_xgb$sign_error*cv_xgb$evaluation_log[, test_error_name,with=F])
+    max_error_index = cv_xgb$best_iteration
+    test_error_name = gsub('mean','std',test_error_name)
+    max_error_std = max(cv_xgb$evaluation_log[max_error_index, test_error_name, with = F])
+    
+    if (max_error > best_error){
+      best_error = max_error
+      best_error.index = max_error_index
+      best_error.std = max_error_std
+      best_seed = seed_number
+      best_params = params_xgb
+    }
+    cat(paste0('cv ' ,i,', best ',best_params$eval_metric,' ', best_error,
+               ' (', round(1.96*best_error.std,4), ') \n'))
+    print(cv_xgb$evaluation_log[max_error_index])
+    gc_p = gc()
+    
+  }
+  list(best_error = best_error, best_error.index = best_error.index,
+       best_seed = best_seed, best_params = best_params, best_error.std = best_error.std
+  )
+}
+
 
 createDataPartition2 = function(x, k = 2, prob = 0.5, outnames) {
   if(length(prob) == 1) prob = c(prob, 1- prob)

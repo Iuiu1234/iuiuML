@@ -1,6 +1,21 @@
-.httr-oauth
-.Rproj.user/*
-R/0privatecredentials.R
-R/1privatecredentials.R
-.Rproj.user
+syntax: glob
+*.Rhistory
+*deleteme*
+*dltme*
+output/
+*.Rproj
+*.Rproj.user\
+*.httr-oauth
+*.html
 .hg/
+*.xlsx
+*.csv
+*.dat
+_old
+*.png
+*_tmp*
+*.key
+*test*
+*docker-compose.yml
+*docker-compose.yaml
+.Rproj.user

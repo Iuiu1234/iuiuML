@@ -15,18 +15,18 @@ Depends:
       data.table, 
       reshape2, 
       lubridate, 
-      dummies, 
+      caret, 
+      xgboost, 
+      measurements
+Suggests: 
+      dummies,
       doParallel,
       AUC, 
       ggplot2, 
       plotly, 
       GGally, 
-      caret, 
-      xgboost, 
       tensorflow, 
       e1071, 
       FNN, 
-      measurements,
       ggExtra,
       DataExplorer
-
